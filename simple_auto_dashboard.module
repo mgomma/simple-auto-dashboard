@@ -1,0 +1,116 @@
+<?php
+
+/**
+ * @file
+ * simple auto dashboard module.
+ */
+
+/**
+* Implements hook_views_api().
+* Enabling using templates inside module
+*/
+function simple_auto_dashboard_views_api() {
+  $path = drupal_get_path('module', 'simple_auto_dashboard');
+  return array(
+    'api' => 3,
+    'path' => $path,
+    'template path' => $path.'/templates',
+  );
+}
+
+/**
+* Implements HOOK_views_pre_execute().
+*/
+function simple_auto_dashboard_views_pre_execute(&$view) {
+  if ($view->name == 'dashboard') {
+    if (!simple_auto_dashboard_url_access_check($view->args[0])) {
+      drupal_set_message(t('Sorry You do not hane enough permissions.'));
+      drupal_goto('dashboard');
+    }
+  }
+}
+
+/**
+ * Implements HOOK_menu().
+ */
+function simple_auto_dashboard_menu() {
+  $items = array();
+
+  $items['dashboard'] = array(
+    'title' => 'Dashboard',
+    'page callback' => 'dashboard_page',
+    'access callback' => 'simple_auto_dashboard_url_access_check',
+    'expanded' => TRUE,
+  );
+  return $items;
+}
+
+/**
+ * Dashboard url access check for given roles.
+ */
+function simple_auto_dashboard_url_access_check() {
+  return TRUE;
+}
+
+/**
+ * Dashboard access check for managing content.
+ */
+function simple_auto_dashboard_access_check($content_type_machine_name = FALSE) {
+  $permission = 'create ' . $content_type_machine_name . ' content';
+  return $content_type_machine_name ? user_access($permission) : $content_type_machine_name;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function simple_auto_dashboard_theme($existing, $type, $theme, $path) {
+  return array(
+    'dashboard_tpl' => array(
+      'variables' => array('data' => NULL),
+      'template' => 'dashboard',
+      'path' => drupal_get_path('module', 'simple_auto_dashboard'). '/templates',
+    ),
+  );
+}
+
+/**
+ * Dashboard tpl render
+ */
+function dashboard_page() {
+  return theme('dashboard_tpl');
+}
+
+/**
+ * Implements hook_permission().
+ */
+function simple_auto_dashboard_permission() {
+  return array(
+    'Edit Content authored by my role' => array(
+      'title' => t('Edit the content if auther have the same role'),
+      'description' => t('Allows users in the same role to edit content add by their colleagues in the same role.'),
+    ),
+    'Delete Content authored by my role' => array(
+      'title' => t('Delete the content if auther have the same role'),
+      'description' => t('Allows users in the same role to Delete content add by their colleagues in the same role.'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_node_access().
+ */
+function simple_auto_dashboard_node_access($node, $op, $account) {
+  $compare_roles_condition = ($op == 'delete' && user_access('Delete Content authored by my role', $account)) || ($op == 'update' && user_access('Edit Content authored by my role', $account));
+
+  if($compare_roles_condition){
+    $node_author_object = user_load($node->uid);
+
+    $intersection_arr = array_intersect_key($node_author_object->roles, $account->roles);
+    unset($intersection_arr[2]);//authenticated.
+
+    if(!empty($intersection_arr)){
+      return NODE_ACCESS_ALLOW;
+    }
+  }
+}
+

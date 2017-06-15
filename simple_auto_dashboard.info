@@ -1,0 +1,5 @@
+name = Simple auto dashboard
+description = Simple auto dashboard for site administrators.
+core = 7.x
+package = Other
+dependencies[] = views
